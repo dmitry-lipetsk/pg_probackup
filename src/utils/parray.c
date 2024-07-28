@@ -242,5 +242,5 @@ parray_remove_if(parray *array, criterion_fn criterion, void *args, cleanup_fn c
 	}
 
 	/* adjust the number of used elements */
-	array->used -= j - i;
+	array->used = i;
 }
