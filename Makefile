@@ -40,6 +40,7 @@ endif
 
 ifdef USE_PGXS
 PG_CONFIG = pg_config
+PG_LDFLAGS = -lz
 PGXS := $(shell $(PG_CONFIG) --pgxs)
 include $(PGXS)
 else
