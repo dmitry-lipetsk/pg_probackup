@@ -408,8 +408,8 @@ main(int argc, char *argv[])
 		backup_subcmd == SET_CONFIG_CMD ||
 		backup_subcmd == SET_BACKUP_CMD)
 	{
-		int			i,
-					len = 0,
+		int			i;
+		size_t		len = 0,
 					allocated = 0;
 
 		allocated = sizeof(char) * MAXPGPATH;
@@ -417,19 +417,24 @@ main(int argc, char *argv[])
 
 		for (i = 0; i < argc; i++)
 		{
-			int			arglen = strlen(argv[i]);
+			size_t const		arglen = strlen(argv[i]);
+			size_t const 		req_size = arglen + len + 2;
 
-			if (arglen + len > allocated)
+			if (allocated < req_size)
 			{
-				allocated *= 2;
+				allocated = Max(allocated * 2, req_size);
 				command = repalloc(command, allocated);
 			}
 
+			Assert(req_size <= allocated);
+			Assert((len + arglen) < allocated);
 			strncpy(command + len, argv[i], arglen);
 			len += arglen;
+			Assert(len < allocated);
 			command[len++] = ' ';
 		}
 
+		Assert(len < allocated);
 		command[len] = '\0';
 	}
 

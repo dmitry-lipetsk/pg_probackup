@@ -1,6 +1,6 @@
 import unittest
 import os
-from .helpers.ptrack_helpers import ProbackupTest, ProbackupException
+from .helpers.ptrack_helpers import ProbackupTest, ProbackupException, PbDebugMode
 import locale
 
 class OptionTest(ProbackupTest, unittest.TestCase):
@@ -27,6 +27,20 @@ class OptionTest(ProbackupTest, unittest.TestCase):
                 'ERROR: No backup catalog path specified.\n' + \
                 'Please specify it either using environment variable BACKUP_PATH or\n' + \
                 'command line option --backup-path (-B)',
+                e.message,
+                '\n Unexpected Error Message: {0}\n CMD: {1}'.format(repr(e.message), self.cmd))
+
+    # @unittest.skip("skip")
+    def test_too_long_backup_path(self):
+        """backup command failure without backup mode option"""
+        backup_dir = os.path.join(self.tmp_path, self.module_name, self.fname, 'backup_'*1024)
+        try:
+            self.run2_pb(["backup", "-B", backup_dir], debugMode=PbDebugMode.NONE)
+            self.assertEqual(1, 0, "Expecting Error because '-B' parameter is not specified.\n Output: {0} \n CMD: {1}".format(
+                repr(self.output), self.cmd))
+        except ProbackupException as e:
+            self.assertIn(
+                'ERROR: Required parameter not specified: --instance',
                 e.message,
                 '\n Unexpected Error Message: {0}\n CMD: {1}'.format(repr(e.message), self.cmd))
 
