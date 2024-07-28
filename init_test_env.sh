@@ -1,6 +1,6 @@
 export PG_PROBACKUP_PARANOIA="ON"
 export ARCHIVE_COMPRESSION="ON"
-export PGPROBACKUPBIN="$0/pg_probackup"
+export PGPROBACKUPBIN="$(dirname "$0")/pg_probackup"
 export PGPROBACKUP_SSH_REMOTE="OFF"
 export PGPROBACKUP_GDB="ON"
 export PG_PROBACKUP_TEST_BASIC="ON"
