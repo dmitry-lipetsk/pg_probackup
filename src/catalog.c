@@ -88,7 +88,7 @@ timelineInfoFree(void *tliInfo)
 void
 unlink_lock_atexit(bool unused_fatal, void *unused_userdata)
 {
-	int	i;
+	size_t	i;
 
 	if (locks == NULL)
 		return;
