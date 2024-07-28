@@ -1,7 +1,7 @@
 import unittest
 import subprocess
 import os
-from .helpers.ptrack_helpers import ProbackupTest, ProbackupException
+from .helpers.ptrack_helpers import ProbackupTest, ProbackupException, PbDebugMode
 from sys import exit
 from shutil import copyfile
 
@@ -65,13 +65,13 @@ class ConfigTest(ProbackupTest, unittest.TestCase):
         self.set_archiving(backup_dir, 'node', node)
         node.slow_start()
 
-        full1_id = self.backup_node(backup_dir, 'node', node)
+        full1_id = self.backup2_node(backup_dir, 'node', node, debugMode=PbDebugMode.NONE)
 
         node.safe_psql(
             'postgres',
             'create table t1()')
 
-        fulle2_id = self.backup_node(backup_dir, 'node', node)
+        fulle2_id = self.backup2_node(backup_dir, 'node', node, debugMode=PbDebugMode.NONE)
 
         fulle1_conf_file = os.path.join(
             backup_dir, 'backups','node', full1_id, 'backup_content.control')
@@ -82,7 +82,7 @@ class ConfigTest(ProbackupTest, unittest.TestCase):
         copyfile(fulle2_conf_file, fulle1_conf_file)
 
         try:
-            self.validate_pb(backup_dir, 'node')
+            self.validate2_pb(backup_dir, 'node', debugMode=PbDebugMode.NONE)
             self.assertEqual(
                     1, 0,
                     "Expecting Error because pg_probackup.conf is missing. "
