@@ -174,7 +174,7 @@ write_backup_status(pgBackup *backup, BackupStatus status,
  * lock file: BACKUP_LOCK_FILE.
  *
  * Multiple proccess are allowed to take shared locks simultaneously.
- * Shared locks - PIDs of proccesses, holding the lock - are placed in
+ * Shared locks - PIDs of processes, holding the lock - are placed in
  * separate lock file: BACKUP_RO_LOCK_FILE.
  * When taking shared lock, a brief exclusive lock is taken.
  *
