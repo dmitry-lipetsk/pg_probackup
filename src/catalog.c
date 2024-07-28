@@ -275,8 +275,8 @@ lock_backup(pgBackup *backup, bool strict, bool exclusive)
 
 	/* save lock metadata for later unlocking */
 	lock = pgut_malloc(sizeof(LockInfo));
-	snprintf(lock->backup_id, 10, "%s", backup_id_of(backup));
-	snprintf(lock->backup_dir, MAXPGPATH, "%s", backup->root_dir);
+	snprintf(lock->backup_id, lengthof(lock->backup_id), "%s", backup_id_of(backup));
+	snprintf(lock->backup_dir, lengthof(lock->backup_dir), "%s", backup->root_dir);
 	lock->exclusive = exclusive;
 
 	/* Use parray for lock release */
