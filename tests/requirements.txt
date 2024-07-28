@@ -10,5 +10,5 @@ allure-pytest
 deprecation
 pexpect
 setuptools
-pytest==7.4.3
+pytest
 pytest-xdist
