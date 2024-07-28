@@ -47,10 +47,13 @@ slurpFile(const char *datadir, const char *path, size_t *filesize, bool safe, fi
 	if (fio_stat(fullpath, &statbuf, true, location) < 0)
 	{
 		if (safe)
+		{
+			fio_close(fd);
 			return NULL;
-		else
-			elog(ERROR, "Could not stat file \"%s\": %s",
-				fullpath, strerror(errno));
+		}
+
+		elog(ERROR, "Could not stat file \"%s\": %s",
+			fullpath, strerror(errno));
 	}
 
 	len = statbuf.st_size;
@@ -59,10 +62,14 @@ slurpFile(const char *datadir, const char *path, size_t *filesize, bool safe, fi
 	if (fio_read(fd, buffer, len) != len)
 	{
 		if (safe)
+		{
+			fio_close(fd);
+			pg_free(buffer);
 			return NULL;
-		else
-			elog(ERROR, "Could not read file \"%s\": %s\n",
-				fullpath, strerror(errno));
+		}
+
+		elog(ERROR, "Could not read file \"%s\": %s\n",
+			fullpath, strerror(errno));
 	}
 
 	fio_close(fd);
