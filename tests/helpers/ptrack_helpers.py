@@ -1,6 +1,7 @@
 # you need os for unittest to work
 import os
 import gc
+import enum
 import unittest
 from sys import exit, argv, version_info
 import signal
@@ -140,6 +141,91 @@ def base36enc(number):
     return sign + base36
 
 
+def SUBPROCESS_WITH_DBGSERVER__run(*popenargs,
+        input=None, capture_output=False, timeout=None, check=False, **kwargs):
+    if input is not None:
+        if kwargs.get('stdin') is not None:
+            raise ValueError('stdin and input arguments may not both be used.')
+        kwargs['stdin'] = subprocess.PIPE
+
+    if capture_output:
+        if kwargs.get('stdout') is not None or kwargs.get('stderr') is not None:
+            raise ValueError('stdout and stderr arguments may not be used '
+                             'with capture_output.')
+        kwargs['stdout'] = subprocess.PIPE
+        kwargs['stderr'] = subprocess.PIPE
+
+    run_script_path = os.path.dirname(os.path.realpath(__file__))
+    run_script_path = os.path.join (run_script_path, 'run_suspended.sh')
+
+    popenargs2 = ['bash', run_script_path]
+    
+    popenargs2.extend(*popenargs)
+
+    # Process will be ran as suspended!
+    # Attach to gdbserver (with VSCode) and continue its execution!
+    with subprocess.Popen(popenargs2, **kwargs) as process:
+        gdbserver = None
+        try:
+            # It is expected that gdbserver will closed automatically
+            gdbserver = subprocess.Popen(["gdbserver", "--attach","localhost:2345",str(process.pid)])
+
+            # TODO: we can process gdbserver output and check that an initialization was finished without any problems
+
+            stdout, stderr = process.communicate(input, timeout=timeout)
+        except subprocess.TimeoutExpired as exc:
+            process.kill()
+            if subprocess._mswindows:
+                # Windows accumulates the output in a single blocking
+                # read() call run on child threads, with the timeout
+                # being done in a join() on those threads.  communicate()
+                # _after_ kill() is required to collect that and add it
+                # to the exception.
+                exc.stdout, exc.stderr = process.communicate()
+            else:
+                # POSIX _communicate already populated the output so
+                # far into the TimeoutExpired exception.
+                process.wait()
+
+            if (gdbserver != None):
+                gdbserver.kill()
+
+            raise
+        except:  # Including KeyboardInterrupt, communicate handled that.
+            process.kill()
+            # We don't call process.wait() as .__exit__ does that for us.
+
+            if (gdbserver != None):
+                gdbserver.kill()
+            raise
+
+        # Check if child process has terminated.
+        retcode = process.poll()
+        if check and retcode:
+            raise subprocess.CalledProcessError(retcode, process.args, output=stdout, stderr=stderr)
+
+    return subprocess.CompletedProcess(process.args, retcode, stdout, stderr)
+
+
+def SUBPROCESS_WITH_DBGSERVER__check_output(*popenargs, timeout=None, **kwargs):
+    for kw in ('stdout', 'check'):
+        if kw in kwargs:
+            raise ValueError(f'{kw} argument not allowed, it will be overridden.')
+
+    if 'input' in kwargs and kwargs['input'] is None:
+        # Explicitly passing input=None was previously equivalent to passing an
+        # empty string. That is maintained here for backwards compatibility.
+        if kwargs.get('universal_newlines') or kwargs.get('text') or kwargs.get('encoding') \
+                or kwargs.get('errors'):
+            empty = ''
+        else:
+            empty = b''
+        kwargs['input'] = empty
+
+    return SUBPROCESS_WITH_DBGSERVER__run(*popenargs, stdout=subprocess.PIPE, timeout=timeout, check=True,
+               **kwargs).stdout
+
+
 class ProbackupException(Exception):
     def __init__(self, message, cmd):
         self.message = message
@@ -231,6 +317,16 @@ class PostgresNodeExtended(testgres.PostgresNode):
 
         con.close()
         return sum.hexdigest()
+
+class PbDebugMode(enum.Enum):
+    NONE = 0
+    GDB = 1
+    GDBSERVER = 2
+
+def BuildDebugMode(gdb:bool = False) -> PbDebugMode:
+    if(gdb):
+        return PbDebugMode.GDB
+    return PbDebugMode.NONE        
 
 class ProbackupTest(object):
     # Class attributes
@@ -947,6 +1043,11 @@ class ProbackupTest(object):
                 )
 
     def run_pb(self, command, asynchronous=False, gdb=False, old_binary=False, return_id=True, env=None):
+        debugMode = BuildDebugMode(gdb=gdb)
+        
+        return self.run2_pb(command, asynchronous=asynchronous, debugMode=debugMode, old_binary=old_binary, return_id=return_id, env=env)
+
+    def run2_pb(self, command, asynchronous=False, debugMode:PbDebugMode=PbDebugMode.NONE, old_binary=False, return_id=True, env=None):
         if not self.probackup_old_path and old_binary:
             print('PGPROBACKUPBIN_OLD is not set')
             exit(1)
@@ -963,7 +1064,7 @@ class ProbackupTest(object):
             self.cmd = [' '.join(map(str, [binary_path] + command))]
             if self.verbose:
                 print(self.cmd)
-            if gdb:
+            if debugMode == PbDebugMode.GDB:
                 return GDBobj([binary_path] + command, self)
             if asynchronous:
                 return subprocess.Popen(
@@ -973,11 +1074,18 @@ class ProbackupTest(object):
                     env=env
                 )
             else:
-                self.output = subprocess.check_output(
-                    [binary_path] + command,
-                    stderr=subprocess.STDOUT,
-                    env=env
-                    ).decode('utf-8')
+                if(debugMode == PbDebugMode.GDBSERVER):
+                    self.output = SUBPROCESS_WITH_DBGSERVER__check_output(
+                        [binary_path] + command,
+                        stderr=subprocess.STDOUT,
+                        env=env
+                        ).decode('utf-8')
+                else:
+                    self.output = subprocess.check_output(
+                        [binary_path] + command,
+                        stderr=subprocess.STDOUT,
+                        env=env
+                        ).decode('utf-8')
                 if command[0] == 'backup' and return_id:
                     # return backup ID
                     for line in self.output.splitlines():
@@ -1095,6 +1203,22 @@ class ProbackupTest(object):
             old_binary=False, return_id=True, no_remote=False,
             env=None
             ):
+        debugMode = BuildDebugMode(gdb=gdb)
+        
+        return self.backup2_node(
+            backup_dir, instance, node, data_dir=data_dir,
+            backup_type=backup_type, datname=datname, options=options,
+            asynchronous=asynchronous, debugMode=debugMode,
+            old_binary=old_binary, return_id=return_id, no_remote=no_remote,
+            env=env)
+
+    def backup2_node(
+            self, backup_dir, instance, node, data_dir=False,
+            backup_type='full', datname=False, options=[],
+            asynchronous=False, debugMode=PbDebugMode.NONE,
+            old_binary=False, return_id=True, no_remote=False,
+            env=None
+            ):
         if not node and not data_dir:
             print('You must provide ether node or data_dir for backup')
             exit(1)
@@ -1126,7 +1250,7 @@ class ProbackupTest(object):
         if not old_binary:
             cmd_list += ['--no-sync']
 
-        return self.run_pb(cmd_list + options, asynchronous, gdb, old_binary, return_id, env=env)
+        return self.run2_pb(cmd_list + options, asynchronous, debugMode, old_binary, return_id, env=env)
 
     def checkdb_node(
             self, backup_dir=False, instance=False, data_dir=False,
@@ -1373,6 +1497,15 @@ class ProbackupTest(object):
             self, backup_dir, instance=None, backup_id=None,
             options=[], old_binary=False, gdb=False, asynchronous=False
             ):
+        debugMode = BuildDebugMode(gdb=gdb)
+
+        return self.validate2_pb(backup_dir, instance=instance, backup_id=backup_id,
+            options=options, old_binary=old_binary, debugMode=debugMode, asynchronous=asynchronous)
+
+    def validate2_pb(
+            self, backup_dir, instance=None, backup_id=None,
+            options=[], old_binary=False, debugMode=PbDebugMode.NONE, asynchronous=False
+            ):
 
         cmd_list = [
             'validate',
@@ -1383,7 +1516,7 @@ class ProbackupTest(object):
         if backup_id:
             cmd_list += ['-i', backup_id]
 
-        return self.run_pb(cmd_list + options, old_binary=old_binary, gdb=gdb, asynchronous=asynchronous)
+        return self.run2_pb(cmd_list + options, old_binary=old_binary, debugMode=debugMode, asynchronous=asynchronous)
 
     def delete_pb(
             self, backup_dir, instance, backup_id=None,
