@@ -71,7 +71,7 @@ parray_free(parray *array)
 }
 
 void
-parray_append(parray *array, void *elem)
+parray_append(parray *array, void *elem) /*TODO: code is not safe*/
 {
 	if (array->used + 1 > array->alloced)
 		parray_expand(array, array->alloced * 2);
