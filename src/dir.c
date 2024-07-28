@@ -70,7 +70,7 @@ static const char *pgdata_exclude_dir[] =
 	NULL
 };
 
-static char *pgdata_exclude_files[] =
+static const char* const pgdata_exclude_files[] =
 {
 	/* Skip auto conf temporary file. */
 	"postgresql.auto.conf.tmp",
@@ -86,7 +86,7 @@ static char *pgdata_exclude_files[] =
 	NULL
 };
 
-static char *pgdata_exclude_files_non_exclusive[] =
+static const char* const pgdata_exclude_files_non_exclusive[] =
 {
 	/*skip in non-exclusive backup */
 	"backup_label",
