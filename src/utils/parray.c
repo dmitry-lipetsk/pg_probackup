@@ -187,7 +187,7 @@ parray_qsort(parray *array, int(*compare)(const void *, const void *))
 void
 parray_walk(parray *array, void (*action)(void *))
 {
-	int i;
+	size_t i;
 	for (i = 0; i < array->used; i++)
 		action(array->data[i]);
 }
