@@ -79,6 +79,7 @@ parray_append(parray *array, void *elem) /*TODO: code is not safe*/
 	array->data[array->used++] = elem;
 }
 
+// TODO: [2024-07-29] It has real BUG in reallocation!
 void
 parray_insert(parray *array, size_t index, void *elem)
 {
