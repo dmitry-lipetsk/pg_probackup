@@ -758,6 +758,8 @@ do_backup(InstanceState *instanceState, pgSetBackupParams *set_backup_params,
 	{
 		parray	*backup_list =  catalog_get_backup_list(instanceState, INVALID_BACKUP_ID);
 
+		Assert(backup_list != NULL);
+
 		if (parray_num(backup_list) > 0)
 			latest_backup_id = ((pgBackup *)parray_get(backup_list, 0))->backup_id;
 
