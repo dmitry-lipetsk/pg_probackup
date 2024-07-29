@@ -116,39 +116,80 @@ parray_concat(parray *dest, const parray *src)
 void
 parray_set(parray *array, size_t index, void *elem)
 {
-	if (index > array->alloced - 1)
+	Assert(array);
+	Assert(array->used <= array->alloced);
+
+	if (!(index < array->alloced))
 		parray_expand(array, index + 1);
 
-	array->data[index] = elem;
+	Assert(array);
+	Assert(array->used <= array->alloced);
+	Assert(index < array->alloced);
 
-	/* adjust used count */
-	if (array->used < index + 1)
-		array->used = index + 1;
+	for(; !(index < array->used); ++array->used)
+	{
+		Assert(array->used < array->alloced);
+
+		/* research: let's check unused space in a debug build */
+		Assert(array->data[array->used] == NULL);
+		array->data[array->used] = NULL;
+	}
+
+	Assert(array);
+	Assert(array->used <= array->alloced);
+	Assert(index < array->used);
+
+	array->data[index] = elem;
 }
 
 void *
 parray_get(const parray *array, size_t index)
 {
-	if (index > array->alloced - 1)
-		return NULL;
-	return array->data[index];
+	Assert(array);
+	Assert(array->used <= array->alloced);
+	Assert(index < array->used);
+
+	if (index < array->used)
+		return array->data[index];
+	
+	return NULL;
 }
 
 void *
 parray_remove(parray *array, size_t index)
 {
+	Assert(array);
+	Assert(array->used <= array->alloced);
+	Assert(index < array->used);
+
 	void *val;
 
 	/* removing unused element */
-	if (index > array->used)
+	if (!(index < array->used))
 		return NULL;
+
+	Assert(index < array->used);
 
 	val = array->data[index];
 
-	/* Do not move if the last element was removed. */
-	if (index < array->alloced - 1)
-		memmove(array->data + index, array->data + index + 1,
-			(array->alloced - index - 1) * sizeof(void *));
+	{
+		void **p = array->data + index;
+		void **e = array->data + (array->used - 1);
+
+		Assert(p <= e);
+
+		while(p < e)
+		{
+			void const **d = p;
+			++p;
+			(*d) = (*p);
+		}
+
+		Assert(p == e);
+
+		/* Init unused space - see comment in parray_set */
+		(*p) = NULL;
+	}
 
 	/* adjust used count */
 	array->used--;
