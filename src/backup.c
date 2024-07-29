@@ -2475,6 +2475,7 @@ rewind_and_mark_cfs_datafiles(parray *files, const char *root, char *relative, s
 			 * with older pg_probackup */
 			prev_file->is_cfs = true;
 			prev_file->cfs_chain = NULL;
+		 	/* TODO: do it from end to begin. It will optimize parray_remove! */
 			for (j = 0; j < parray_num(bucket); j++)
 			{
 				tmp_file = parray_get(bucket, j);
