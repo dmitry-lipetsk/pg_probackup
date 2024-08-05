@@ -119,6 +119,7 @@ parray_set(parray *array, size_t index, void *elem)
 {
 	Assert(array);
 	Assert(array->used <= array->alloced);
+	Assert(index != (size_t)(-1));
 
 	if (!(index < array->alloced))
 		parray_expand(array, index + 1);
@@ -127,20 +128,17 @@ parray_set(parray *array, size_t index, void *elem)
 	Assert(array->used <= array->alloced);
 	Assert(index < array->alloced);
 
-	for(; !(index < array->used); ++array->used)
+	if (array->used < index)
 	{
-		Assert(array->used < array->alloced);
-
-		/* research: let's check unused space in a debug build */
-		Assert(array->data[array->used] == NULL);
-		array->data[array->used] = NULL;
+		/* Init not empty space between the last element and our new element */
+		memset(array->data + array->used, 0, sizeof(array->data[0]) * (index - array->used));
 	}
 
-	Assert(array);
-	Assert(array->used <= array->alloced);
-	Assert(index < array->used);
-
 	array->data[index] = elem;
+
+	/* adjust used count */
+	if (array->used <= index)
+		array->used = index + 1;
 }
 
 void *
