@@ -150,7 +150,7 @@ parray_get(const parray *array, size_t index)
 
 	if (index < array->used)
 		return array->data[index];
-	
+
 	return NULL;
 }
 
