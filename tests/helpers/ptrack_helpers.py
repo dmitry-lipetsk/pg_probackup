@@ -1044,7 +1044,7 @@ class ProbackupTest(object):
 
     def run_pb(self, command, asynchronous=False, gdb=False, old_binary=False, return_id=True, env=None):
         debugMode = BuildDebugMode(gdb=gdb)
-        
+
         return self.run2_pb(command, asynchronous=asynchronous, debugMode=debugMode, old_binary=old_binary, return_id=return_id, env=env)
 
     def run2_pb(self, command, asynchronous=False, debugMode:PbDebugMode=PbDebugMode.NONE, old_binary=False, return_id=True, env=None):
@@ -1204,7 +1204,7 @@ class ProbackupTest(object):
             env=None
             ):
         debugMode = BuildDebugMode(gdb=gdb)
-        
+
         return self.backup2_node(
             backup_dir, instance, node, data_dir=data_dir,
             backup_type=backup_type, datname=datname, options=options,
